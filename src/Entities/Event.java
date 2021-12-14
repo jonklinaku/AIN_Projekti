@@ -1,31 +1,22 @@
 package Entities;
 
 public class Event {
-    Course course;
-    Room room;
-    int period;
+    String Room;
+    int Period;
 
-    public Course getCourse() {
-        return course;
+    public String getRoom() {
+        return Room;
     }
 
-    public void setCourse(Course course) {
-        this.course = course;
-    }
-
-    public Room getRoom() {
-        return room;
-    }
-
-    public void setRoom(Room room) {
-        this.room = room;
+    public void setRoom(String room) {
+        Room = room;
     }
 
     public int getPeriod() {
-        return period;
+        return Period;
     }
 
     public void setPeriod(int period) {
-        this.period = period;
+        Period = period;
     }
 }

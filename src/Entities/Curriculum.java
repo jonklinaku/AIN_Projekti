@@ -1,11 +1,13 @@
 package Entities;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Curriculum {
     public int Id;
-    public List<Course> PrimaryCourses;
-    public List<Course> SecondaryCourses;
+    public List<Course> PrimaryCourses= Collections.synchronizedList(new ArrayList<>());
+    public List<Course> SecondaryCourses= Collections.synchronizedList(new ArrayList<>());
 
     public int getId() {
         return Id;
