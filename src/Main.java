@@ -58,7 +58,7 @@ public class Main {
         });*/
         writeSolutionToFile(solutions.get(0));
         while (true){
-            mutateSolution(solutions.get(0));
+            mutateSolutionReplaceBlank(solutions.get(0));
             System.out.println(getSolutionFitness(solutions.get(0)));
         }
         //solutions.forEach(s -> System.out.println(getSolutionFitness(s)));
@@ -104,7 +104,87 @@ public class Main {
         }
 
     }
-    private static void mutateSolution(Course[][] solution){
+    private static Course[][] mutateSolutionChangeRoomSamePeriod(Course[][] OriginalSolution){
+        Course[][] solution = OriginalSolution.clone();
+
+        Course randomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber()==1).findAny().get();
+        int randomCoursePeriod = -1;
+        int randomCourseSolutionRowIndex = -1;
+        for (int i = 0; i < solution.length; i++) {
+            for (int j = 0; j < solution[0].length; j++) {
+                if (solution[i][j] == randomCourse){
+                    randomCoursePeriod = j;
+                    randomCourseSolutionRowIndex = i;
+                }
+            }
+        }
+        List<Room> roomsList = Rooms.parallelStream().filter(room -> room.getRoomtype() == randomCourse.getRoomsRequested().getRoomtype()).collect(Collectors.toList());
+        boolean mutated = false;
+        for (int i = 0; i < roomsList.size(); i++) {
+            if (solution[roomsList.get(i).getSolutionId()][randomCoursePeriod] == null){
+                mutated = true;
+                solution[roomsList.get(i).getSolutionId()][randomCoursePeriod] = randomCourse;
+                solution[randomCourseSolutionRowIndex][randomCoursePeriod] = null;
+            }
+
+        }
+        if (mutated)
+            return solution;
+        else
+            return null;
+    }
+    private static Course[][] mutateSolutionSwap(Course[][] OriginalSolution){
+        Course[][] solution = OriginalSolution.clone();
+
+        Course randomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber()==1).findAny().get();
+        Course similarToRandomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber() == randomCourse.getRoomsRequested().getNumber() && course.getRoomsRequested().getRoomtype() == randomCourse.getRoomsRequested().getRoomtype() && course.getId() != randomCourse.getId()).findAny().get();
+        int randomCoursePeriod = -1;
+        int randomCourseSolutionRowIndex = -1;
+        int similarToRandomCoursePeriod = -1;
+        int similarToRandomCourseSolutionRowIndex = -1;
+        for (int i = 0; i < solution.length; i++) {
+            for (int j = 0; j < solution[0].length; j++) {
+                if (solution[i][j] == randomCourse){
+                    randomCoursePeriod = j;
+                    randomCourseSolutionRowIndex = i;
+                }
+                else if (solution[i][j] == similarToRandomCourse){
+                    similarToRandomCoursePeriod = j;
+                    similarToRandomCourseSolutionRowIndex = i;
+                }
+            }
+        }
+
+
+        if (randomCoursePeriod <0 || randomCourseSolutionRowIndex<0 || similarToRandomCoursePeriod<0 || similarToRandomCourseSolutionRowIndex<0)
+            return null;
+        boolean conflict = false;
+        for (int i = 0; i < solution.length; i++) {
+
+                if (solution[i][randomCoursePeriod].getPrimaryCurriculaList() != null && similarToRandomCourse.getPrimaryCurriculaList() != null) {
+                    if ((solution[i][randomCoursePeriod].getPrimaryCurriculaList().parallelStream().anyMatch(curriculum ->
+                            similarToRandomCourse.getPrimaryCurriculaList().contains(curriculum)) || solution[i][randomCoursePeriod].getTeacher() == similarToRandomCourse.getTeacher())) {
+                        conflict = true;
+                        break;
+                    }
+                }
+            if (solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList() != null && randomCourse.getPrimaryCurriculaList() != null) {
+                if ((solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList().parallelStream().anyMatch(curriculum ->
+                        randomCourse.getPrimaryCurriculaList().contains(curriculum)) || solution[i][similarToRandomCoursePeriod].getTeacher() == randomCourse.getTeacher())) {
+                    conflict = true;
+                    break;
+                }
+            }
+
+
+        }
+        if (!conflict)
+            return solution;
+        else
+            return null;
+    }
+    private static Course[][] mutateSolutionReplaceBlank(Course[][] OriginalSolution){
+        Course[][] solution = OriginalSolution.clone();
         Course randomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber()==1).findAny().get();
         int randomCoursePeriod = -1;
         int randomCourseSolutionRowIndex = -1;
@@ -117,7 +197,7 @@ public class Main {
             }
         }
         if (randomCoursePeriod <0 || randomCourseSolutionRowIndex<0)
-            return;
+            return null;
         int startIndex = (int)Math.random()*solution[0].length;
         boolean exitLoop = false;
         for (int i = startIndex; i < solution[0].length; i++) {
@@ -152,7 +232,12 @@ public class Main {
                 solution[insertPos[j]][i] = randomCourse;
                 solution[randomCourseSolutionRowIndex][randomCoursePeriod] = null;
             }
-    }}
+        }
+        if (exitLoop)
+            return solution;
+        else
+            return null;
+    }
     private static int getSolutionFitness(Course[][] solution){
         int[] coursePeriods = new int[Courses.size()];
         for (int i = 0; i < solution.length; i++) {
