@@ -29,43 +29,75 @@ public class Main {
         readInstances();
         List<Course[][]> solutions = new ArrayList<>();
 
-        while (solutions.size() != 1) {
-            Course[][] solution = new Course[Rooms.size()][periodNum];
-            Collections.shuffle(Courses);
-            for (int i = 0; i < Courses.size(); i++) {
-                Course course = Courses.get(i);
-                List<Room> candidateRooms = Rooms.parallelStream().filter(room -> room.Roomtype == course.getRoomsRequested().getRoomtype()).collect(Collectors.toList());
-                try {
-                    insertSolutionEvent(candidateRooms, course, solution);
-                } catch (Exception e) {
-                    //System.out.println("invalid solution");
-                    solution = null;
-                    break;
+        //while (solutions.size() != 1) {
+        //    Course[][] solution = initSolution();
+        //    if ( solution != null) {
+        //        addUniqueSolution(solution, solutions);
+        //    }
+        //}
+        //int gFit = getSolutionFitness(solutions.get(0));
+        Course[][] g = initSolution();
+        int gFit = getSolutionFitness(g);
+       // Course[][] g = solutions.get(0);
+
+
+        int resetEq = 0;
+        int resetNe = 0;
+        while (true){
+            Course[][] c;
+            double chance = Math.random();
+            if (chance>=0.6)
+             c = mutateSolutionReplaceBlank(g);
+            else if (chance<=0.3)
+             c = mutateSolutionSwap(g);
+            else
+             c = mutateSolutionChangeRoomSamePeriod(g);
+
+            if (c==null)
+                continue;
+            int cFit = getSolutionFitness(c);
+            if (cFit <= gFit)
+            {
+                if (cFit==gFit)
+                {
+                    if (++resetEq == 20)
+                    {
+                        g = initSolution();
+                        gFit = getSolutionFitness(g);
+                        resetEq= 0;
+                    }
+                }
+                System.out.println("new global fit: "+cFit);
+                gFit = cFit;
+                g=c;
+            } else {
+                if (++resetNe == 100)
+                {
+                    g = initSolution();
+                    gFit = getSolutionFitness(g);
+                    resetNe= 0;
                 }
             }
-            if (solution != null) {
-                addUniqueSolution(solution, solutions);
-            }
+            //writeSolutionToFile(solutions.get(0));
         }
 
-        /*Courses.forEach(course -> {
-            List<Room> candidateRooms = Rooms.parallelStream().filter(room -> room.Roomtype == course.getRoomsRequested().getRoomtype()).collect(Collectors.toList());
-            try {insertSolutionEvent(candidateRooms,course,solution);}
-            catch (Exception e){
-                System.out.println("invalid solution");
-            }
-
-        });*/
-        writeSolutionToFile(solutions.get(0));
-        while (true){
-            mutateSolutionReplaceBlank(solutions.get(0));
-            System.out.println(getSolutionFitness(solutions.get(0)));
-        }
-        //solutions.forEach(s -> System.out.println(getSolutionFitness(s)));
-        //solutions.forEach(s -> printSolution(s));
 
     }
-
+    private static Course[][] initSolution(){
+        Course[][] solution = new Course[Rooms.size()][periodNum];
+        Collections.shuffle(Courses);
+        for (int i = 0; i < Courses.size(); i++) {
+            Course course = Courses.get(i);
+            List<Room> candidateRooms = Rooms.parallelStream().filter(room -> room.Roomtype == course.getRoomsRequested().getRoomtype()).collect(Collectors.toList());
+            try {
+                insertSolutionEvent(candidateRooms, course, solution);
+            } catch (Exception e) {
+                solution = null;
+                break;
+            }
+        }
+        return solution;
+    }
     private static void writeSolutionToFile(Course[][] solution){
         FileSolution fileSolution = new FileSolution();
         for (int i = 0; i < solution.length; i++) {
@@ -135,9 +167,8 @@ public class Main {
     }
     private static Course[][] mutateSolutionSwap(Course[][] OriginalSolution){
         Course[][] solution = OriginalSolution.clone();
-
         Course randomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber()==1).findAny().get();
-        Course similarToRandomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber() == randomCourse.getRoomsRequested().getNumber() && course.getRoomsRequested().getRoomtype() == randomCourse.getRoomsRequested().getRoomtype() && course.getId() != randomCourse.getId()).findAny().get();
+        Course similarToRandomCourse = Courses.parallelStream().filter(course -> course.getRoomsRequested().getNumber() == 1 && course.getRoomsRequested().getRoomtype() == randomCourse.getRoomsRequested().getRoomtype() && course.getId() != randomCourse.getId()).findAny().get();
         int randomCoursePeriod = -1;
         int randomCourseSolutionRowIndex = -1;
         int similarToRandomCoursePeriod = -1;
@@ -161,25 +192,33 @@ public class Main {
         boolean conflict = false;
         for (int i = 0; i < solution.length; i++) {
 
-                if (solution[i][randomCoursePeriod].getPrimaryCurriculaList() != null && similarToRandomCourse.getPrimaryCurriculaList() != null) {
+            if (solution[i][randomCoursePeriod] != null &&solution[i][randomCoursePeriod].getPrimaryCurriculaList() != null && similarToRandomCourse.getPrimaryCurriculaList() != null) {
+                if (!(i==randomCourseSolutionRowIndex)) {
                     if ((solution[i][randomCoursePeriod].getPrimaryCurriculaList().parallelStream().anyMatch(curriculum ->
                             similarToRandomCourse.getPrimaryCurriculaList().contains(curriculum)) || solution[i][randomCoursePeriod].getTeacher() == similarToRandomCourse.getTeacher())) {
                         conflict = true;
                         break;
                     }
                 }
-            if (solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList() != null && randomCourse.getPrimaryCurriculaList() != null) {
-                if ((solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList().parallelStream().anyMatch(curriculum ->
-                        randomCourse.getPrimaryCurriculaList().contains(curriculum)) || solution[i][similarToRandomCoursePeriod].getTeacher() == randomCourse.getTeacher())) {
-                    conflict = true;
-                    break;
+            }
+            if (solution[i][similarToRandomCoursePeriod] != null && solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList() != null && randomCourse.getPrimaryCurriculaList() != null) {
+                if (!(i==similarToRandomCourseSolutionRowIndex)) {
+                    if ((solution[i][similarToRandomCoursePeriod].getPrimaryCurriculaList().parallelStream().anyMatch(curriculum ->
+                            randomCourse.getPrimaryCurriculaList().contains(curriculum)) || solution[i][similarToRandomCoursePeriod].getTeacher() == randomCourse.getTeacher())) {
+                        conflict = true;
+                        break;
+                    }
                 }
             }
 
 
         }
-        if (!conflict)
+        if (!conflict) {
+            Course temp = solution[randomCourseSolutionRowIndex][randomCoursePeriod];
+            solution[randomCourseSolutionRowIndex][randomCoursePeriod] = solution[similarToRandomCourseSolutionRowIndex][similarToRandomCoursePeriod];
+            solution[similarToRandomCourseSolutionRowIndex][similarToRandomCoursePeriod] = temp;
             return solution;
+        }
         else
             return null;
     }
